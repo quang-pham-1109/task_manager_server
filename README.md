@@ -40,7 +40,7 @@ Before you begin, ensure you have the following prerequisites:
 1. Clone the repository:
 
  ```bash
- git clone https://github.com/your-username/project-management-api.git
+ git clone https://github.com/quang-pham-1109/task_manager_server.git
 ```
    
 2. Install dependencies:
