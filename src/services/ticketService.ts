@@ -137,9 +137,62 @@ export const findTicketbyStageId = async (stageId: string) => {
   return tickets;
 };
 
+export const updateTicketStage = async (
+  inputTicketId: string,
+  newStageId: string
+) =>{ 
+  const oldTicket = await prisma.ticket.findUnique({
+    where: {
+      ticketId: inputTicketId,
+    },
+  });
+
+  const oldStage = await prisma.stage.findFirst({
+    where: {
+      stageId: oldTicket?.stageId
+    }
+  })
+
+  if (oldStage) {
+    oldStage.ticketIds.splice(oldStage.ticketIds.indexOf(inputTicketId), 1);
+    await prisma.stage.updateMany({
+      where: {
+        ticketIds: {
+          has: inputTicketId,
+        },
+      },
+      data: {
+        ticketIds: {
+          set: oldStage.ticketIds,
+        },
+      },
+    });
+  }
+  await prisma.ticket.update({    
+    where:{
+      ticketId: inputTicketId,
+    },
+    data:{
+    stageId: newStageId
+    }
+})
+  await prisma.stage.update({
+    where: {
+      stageId: newStageId,
+    },
+    data: {
+      ticketIds: {
+        push: inputTicketId,
+      },
+    },
+  });
+}
+
 export const updateTicket = async (
   inputTicketId: string,
   updateTicket: Ticket,
+  newTagId: string,
+  newStageId: string,
 ) => {
   const oldTicket = await prisma.ticket.findUnique({
     where: {
@@ -157,8 +210,51 @@ export const updateTicket = async (
       assignedUserIds: updateTicket.assignedUserIds,
       deadline: updateTicket.deadline,
       parentTicketId: updateTicket.parentTicketId,
+      childTickets: updateTicket.childTickets,
+      tagId: newTagId,
+      stageId: newStageId,
     },
   });
+  
+  // Check if stageId has changed and update related data
+  if (updatedTicket.stageId !== oldTicket?.stageId) {
+    const oldStage = await prisma.stage.findFirst({
+      select: {
+        ticketIds: true,
+      },
+      where: {
+        ticketIds: {
+          has: inputTicketId,
+        },
+      },
+    });
+
+    if (oldStage) {
+      oldStage.ticketIds.splice(oldStage.ticketIds.indexOf(inputTicketId), 1);
+      await prisma.stage.updateMany({
+        where: {
+          ticketIds: {
+            has: inputTicketId,
+          },
+        },
+        data: {
+          ticketIds: {
+            set: oldStage.ticketIds,
+          },
+        },
+      });
+    }
+    await prisma.stage.update({
+      where: {
+        stageId: newStageId,
+      },
+      data: {
+        ticketIds: {
+          push: inputTicketId,
+        },
+      },
+    });
+  };
 
   if (updatedTicket.childTickets !== oldTicket?.childTickets) {
     deleteParentTicketId(inputTicketId);
